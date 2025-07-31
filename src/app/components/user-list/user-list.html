@@ -1,0 +1,132 @@
+<!-- TRAINING MODULE 3: Component Template Testing -->
+<div class="user-list-container">
+  <!-- Header Section -->
+  <div class="header">
+    <h2>User Management</h2>
+    <div class="stats">
+      <span class="total-users">Total: {{ users.length }}</span>
+      <span class="active-users">Active: {{ activeUsersCount }}</span>
+    </div>
+  </div>
+
+  <!-- Search and Controls -->
+  <div class="controls">
+    <div class="search-container">
+      <input 
+        type="text" 
+        [(ngModel)]="searchQuery"
+        (input)="onSearchChange($event.target?.value || '')"
+        placeholder="Search users..."
+        class="search-input"
+        data-testid="search-input"
+      />
+      <button 
+        (click)="refresh()" 
+        class="refresh-btn"
+        data-testid="refresh-button"
+        [disabled]="isLoading"
+      >
+        🔄 Refresh
+      </button>
+    </div>
+    
+    <div class="filter-controls">
+      <label class="checkbox-label">
+        <input 
+          type="checkbox" 
+          [(ngModel)]="showInactive"
+          (change)="applyFilters()"
+          data-testid="show-inactive-checkbox"
+        />
+        Show Inactive Users
+      </label>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div 
+    *ngIf="error" 
+    class="error-message"
+    data-testid="error-message"
+  >
+    <span>{{ error }}</span>
+    <button (click)="clearError()" class="close-error">×</button>
+  </div>
+
+  <!-- Loading State -->
+  <div 
+    *ngIf="isLoading" 
+    class="loading"
+    data-testid="loading-indicator"
+  >
+    <div class="spinner"></div>
+    <span>Loading users...</span>
+  </div>
+
+  <!-- Empty State -->
+  <div 
+    *ngIf="!isLoading && filteredUsers.length === 0 && !error" 
+    class="empty-state"
+    data-testid="empty-state"
+  >
+    <p>No users found.</p>
+    <button (click)="refresh()" class="retry-btn">Try Again</button>
+  </div>
+
+  <!-- User List -->
+  <div 
+    *ngIf="!isLoading && filteredUsers.length > 0" 
+    class="user-list"
+    data-testid="user-list"
+  >
+    <div 
+      *ngFor="let user of filteredUsers; trackBy: trackByUserId; let i = index"
+      class="user-item"
+      [class.selected]="isUserSelected(user)"
+      [class.inactive]="!user.isActive"
+      (click)="selectUser(user)"
+      [attr.data-testid]="'user-item-' + user.id"
+    >
+      <div class="user-info">
+        <div class="user-name">
+          {{ user.name | capitalize }}
+          <span 
+            *ngIf="!user.isActive" 
+            class="inactive-badge"
+            data-testid="inactive-badge"
+          >
+            Inactive
+          </span>
+        </div>
+        <div class="user-email">{{ user.email }}</div>
+        <div class="user-details">
+          <span class="user-age">Age: {{ user.age }}</span>
+          <span class="user-created">Joined: {{ user.createdAt | date:'shortDate' }}</span>
+        </div>
+      </div>
+      
+      <div class="user-actions">
+        <button 
+          (click)="deleteUser(user, $event)"
+          class="delete-btn"
+          [attr.data-testid]="'delete-button-' + user.id"
+          title="Delete user"
+        >
+          🗑️
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Info -->
+  <div 
+    *ngIf="filteredUsers.length > 0" 
+    class="footer"
+    data-testid="footer-info"
+  >
+    <span>Showing {{ filteredUsers.length }} of {{ users.length }} users</span>
+    <span *ngIf="maxUsers > 0 && users.length > maxUsers">
+      (Limited to {{ maxUsers }} users)
+    </span>
+  </div>
+</div>

@@ -1,0 +1,54 @@
+<!-- Angular Unit Testing Demo Application -->
+<div class="app-container">
+  <header class="app-header">
+    <h1>{{ title() }}</h1>
+    <p class="subtitle">A comprehensive guide to Angular unit testing</p>
+  </header>
+
+  <main class="app-main">
+    <div class="demo-section">
+      <h2>Demo Components</h2>
+      <p>This application demonstrates various Angular unit testing concepts:</p>
+      
+      <ul class="feature-list">
+        <li>✅ Service Testing with HTTP mocking</li>
+        <li>✅ Component Testing with DOM interactions</li>
+        <li>✅ Pipe Testing with edge cases</li>
+        <li>✅ Directive Testing</li>
+        <li>✅ Form Testing with validation</li>
+        <li>✅ Async operations and observables</li>
+        <li>✅ Error handling scenarios</li>
+      </ul>
+    </div>
+
+    <div class="user-section">
+      <h2>User Management Demo</h2>
+      <div class="selected-user" *ngIf="selectedUser">
+        <h3>Selected User</h3>
+        <div class="user-card">
+          <p><strong>Name:</strong> {{ selectedUser.name }}</p>
+          <p><strong>Email:</strong> {{ selectedUser.email }}</p>
+          <p><strong>Age:</strong> {{ selectedUser.age }}</p>
+          <p><strong>Status:</strong> 
+            <span [class]="selectedUser.isActive ? 'status-active' : 'status-inactive'">
+              {{ selectedUser.isActive ? 'Active' : 'Inactive' }}
+            </span>
+          </p>
+        </div>
+      </div>
+
+      <app-user-list 
+        [maxUsers]="10"
+        [showInactive]="true"
+        (userSelected)="onUserSelected($event)"
+        (userDeleted)="onUserDeleted($event)">
+      </app-user-list>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <p>🧪 Angular Unit Testing Training - Practice makes perfect!</p>
+  </footer>
+</div>
+
+<router-outlet></router-outlet>

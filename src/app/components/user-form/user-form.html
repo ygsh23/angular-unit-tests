@@ -1,0 +1,115 @@
+<div class="user-form-container">
+  <div class="form-header">
+    <h2>{{ formTitle }}</h2>
+  </div>
+
+  <form [formGroup]="userForm" (ngSubmit)="onSubmit()" class="user-form" novalidate>
+    <!-- Name Field -->
+    <div class="form-group">
+      <label for="name" class="form-label">
+        Name <span class="required">*</span>
+      </label>
+      <input
+        id="name"
+        type="text"
+        formControlName="name"
+        class="form-input"
+        [class.error]="hasFieldError('name')"
+        placeholder="Enter user name"
+        autocomplete="name"
+      />
+      <div class="error-message" *ngIf="hasFieldError('name')">
+        {{ getFieldError('name') }}
+      </div>
+    </div>
+
+    <!-- Email Field -->
+    <div class="form-group">
+      <label for="email" class="form-label">
+        Email <span class="required">*</span>
+      </label>
+      <input
+        id="email"
+        type="email"
+        formControlName="email"
+        class="form-input"
+        [class.error]="hasFieldError('email')"
+        placeholder="Enter email address"
+        autocomplete="email"
+      />
+      <div class="error-message" *ngIf="hasFieldError('email')">
+        {{ getFieldError('email') }}
+      </div>
+    </div>
+
+    <!-- Age Field -->
+    <div class="form-group">
+      <label for="age" class="form-label">
+        Age <span class="required">*</span>
+      </label>
+      <input
+        id="age"
+        type="number"
+        formControlName="age"
+        class="form-input"
+        [class.error]="hasFieldError('age')"
+        placeholder="Enter age"
+        min="18"
+        max="100"
+      />
+      <div class="error-message" *ngIf="hasFieldError('age')">
+        {{ getFieldError('age') }}
+      </div>
+    </div>
+
+    <!-- Active Status Field -->
+    <div class="form-group checkbox-group">
+      <label class="checkbox-label">
+        <input
+          type="checkbox"
+          formControlName="isActive"
+          class="checkbox-input"
+        />
+        <span class="checkbox-text">Active User</span>
+      </label>
+    </div>
+
+    <!-- Submit Error -->
+    <div class="error-message submit-error" *ngIf="submitError">
+      {{ submitError }}
+    </div>
+
+    <!-- Form Actions -->
+    <div class="form-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        (click)="onCancel()"
+        [disabled]="isSubmitting"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        class="btn btn-primary"
+        [disabled]="!canSubmit"
+        [class.loading]="isSubmitting"
+      >
+        <span *ngIf="isSubmitting" class="loading-spinner"></span>
+        {{ submitButtonText }}
+      </button>
+    </div>
+  </form>
+
+  <!-- Form Debug Info (for development) -->
+  <div class="form-debug" *ngIf="false">
+    <h4>Form Debug Info</h4>
+    <p><strong>Form Valid:</strong> {{ userForm.valid }}</p>
+    <p><strong>Form Touched:</strong> {{ userForm.touched }}</p>
+    <p><strong>Form Dirty:</strong> {{ userForm.dirty }}</p>
+    <p><strong>Form Value:</strong></p>
+    <pre>{{ userForm.value | json }}</pre>
+    <p><strong>Form Errors:</strong></p>
+    <pre>{{ userForm.errors | json }}</pre>
+  </div>
+</div>

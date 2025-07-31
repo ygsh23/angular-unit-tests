@@ -1,0 +1,511 @@
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { FormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+import { of, throwError, Subject } from 'rxjs';
+import { DebugElement } from '@angular/core';
+import { By } from '@angular/platform-browser';
+
+import { UserListComponent } from './user-list';
+import { UserService } from '../../services/user';
+import { User } from '../../models/user.model';
+import { CapitalizePipe } from '../../pipes/capitalize-pipe';
+
+/**
+ * TRAINING MODULE 3: Component Testing
+ * 
+ * This test suite demonstrates:
+ * 1. Component setup with TestBed
+ * 2. Mocking dependencies (services)
+ * 3. Testing component lifecycle
+ * 4. Testing input/output properties
+ * 5. Testing DOM interactions
+ * 6. Testing async operations
+ * 7. Testing error handling
+ * 8. Testing user interactions
+ */
+describe('UserListComponent', () => {
+  let component: UserListComponent;
+  let fixture: ComponentFixture<UserListComponent>;
+  let userService: jasmine.SpyObj<UserService>;
+  let compiled: HTMLElement;
+
+  // Mock data
+  const mockUsers: User[] = [
+    {
+      id: 1,
+      name: 'John Doe',
+      email: 'john@example.com',
+      age: 30,
+      isActive: true,
+      createdAt: new Date('2023-01-01')
+    },
+    {
+      id: 2,
+      name: 'Jane Smith',
+      email: 'jane@example.com',
+      age: 25,
+      isActive: false,
+      createdAt: new Date('2023-01-02')
+    },
+    {
+      id: 3,
+      name: 'Bob Johnson',
+      email: 'bob@example.com',
+      age: 35,
+      isActive: true,
+      createdAt: new Date('2023-01-03')
+    }
+  ];
+
+  beforeEach(async () => {
+    // Create spy object for UserService
+    const userServiceSpy = jasmine.createSpyObj('UserService', [
+      'getUsers',
+      'searchUsers',
+      'deleteUser',
+      'getActiveUsersCount'
+    ]);
+
+    await TestBed.configureTestingModule({
+      imports: [UserListComponent, CommonModule, FormsModule, CapitalizePipe],
+      providers: [
+        { provide: UserService, useValue: userServiceSpy }
+      ]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(UserListComponent);
+    component = fixture.componentInstance;
+    userService = TestBed.inject(UserService) as jasmine.SpyObj<UserService>;
+    compiled = fixture.nativeElement;
+
+    // Setup default service responses
+    userService.getUsers.and.returnValue(of(mockUsers));
+    userService.searchUsers.and.returnValue(of(mockUsers));
+    userService.deleteUser.and.returnValue(of(true));
+    userService.getActiveUsersCount.and.returnValue(2);
+  });
+
+  describe('Component Initialization', () => {
+    it('should create', () => {
+      expect(component).toBeTruthy();
+    });
+
+    it('should initialize with default values', () => {
+      expect(component.showInactive).toBe(false);
+      expect(component.maxUsers).toBe(10);
+      expect(component.users).toEqual([]);
+      expect(component.filteredUsers).toEqual([]);
+      expect(component.searchQuery).toBe('');
+      expect(component.isLoading).toBe(false);
+      expect(component.error).toBeNull();
+      expect(component.selectedUserId).toBeNull();
+    });
+
+    it('should load users on init', () => {
+      // Act
+      fixture.detectChanges(); // Triggers ngOnInit
+
+      // Assert
+      expect(userService.getUsers).toHaveBeenCalled();
+      expect(component.users).toEqual(mockUsers);
+      expect(component.isLoading).toBe(false);
+    });
+  });
+
+  describe('Input Properties', () => {
+    it('should accept showInactive input', () => {
+      // Arrange
+      component.showInactive = true;
+      component.users = mockUsers;
+
+      // Act
+      component['applyFilters']();
+
+      // Assert
+      expect(component.filteredUsers.length).toBe(3); // All users including inactive
+    });
+
+    it('should accept maxUsers input', () => {
+      // Arrange
+      component.maxUsers = 2;
+      component.users = mockUsers;
+
+      // Act
+      component['applyFilters']();
+
+      // Assert
+      expect(component.filteredUsers.length).toBe(2);
+    });
+  });
+
+  describe('Output Events', () => {
+    it('should emit userSelected when user is selected', () => {
+      // Arrange
+      spyOn(component.userSelected, 'emit');
+      const user = mockUsers[0];
+
+      // Act
+      component.selectUser(user);
+
+      // Assert
+      expect(component.userSelected.emit).toHaveBeenCalledWith(user);
+      expect(component.selectedUserId).toBe(user.id);
+    });
+
+    it('should emit userDeleted when user is deleted', fakeAsync(() => {
+      // Arrange
+      spyOn(component.userDeleted, 'emit');
+      spyOn(window, 'confirm').and.returnValue(true);
+      component.users = mockUsers;
+      const user = mockUsers[0];
+      const mockEvent = new Event('click');
+      spyOn(mockEvent, 'stopPropagation');
+
+      // Act
+      component.deleteUser(user, mockEvent);
+      tick();
+
+      // Assert
+      expect(mockEvent.stopPropagation).toHaveBeenCalled();
+      expect(userService.deleteUser).toHaveBeenCalledWith(user.id);
+      expect(component.userDeleted.emit).toHaveBeenCalledWith(user.id);
+    }));
+  });
+
+  describe('Loading States', () => {
+    it('should show loading indicator when loading', () => {
+      // Arrange
+      component.isLoading = true;
+
+      // Act
+      fixture.detectChanges();
+
+      // Assert
+      const loadingElement = compiled.querySelector('[data-testid="loading-indicator"]');
+      expect(loadingElement).toBeTruthy();
+      expect(loadingElement?.textContent).toContain('Loading users...');
+    });
+
+    it('should hide loading indicator when not loading', () => {
+      // Arrange
+      component.isLoading = false;
+      component.filteredUsers = mockUsers;
+
+      // Act
+      fixture.detectChanges();
+
+      // Assert
+      const loadingElement = compiled.querySelector('[data-testid="loading-indicator"]');
+      expect(loadingElement).toBeFalsy();
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should display error message when error occurs', () => {
+      // Arrange
+      const errorMessage = 'Failed to load users';
+      component.error = errorMessage;
+
+      // Act
+      fixture.detectChanges();
+
+      // Assert
+      const errorElement = compiled.querySelector('[data-testid="error-message"]');
+      expect(errorElement).toBeTruthy();
+      expect(errorElement?.textContent).toContain(errorMessage);
+    });
+
+    it('should clear error when clearError is called', () => {
+      // Arrange
+      component.error = 'Some error';
+
+      // Act
+      component.clearError();
+
+      // Assert
+      expect(component.error).toBeNull();
+    });
+
+    it('should handle service error during load', fakeAsync(() => {
+      // Arrange
+      userService.getUsers.and.returnValue(throwError(() => new Error('Service error')));
+
+      // Act
+      component.loadUsers();
+      tick();
+
+      // Assert
+      expect(component.error).toBe('Failed to load users. Please try again.');
+      expect(component.isLoading).toBe(false);
+    }));
+  });
+
+  describe('Search Functionality', () => {
+    it('should perform search when search query changes', fakeAsync(() => {
+      // Arrange
+      const searchQuery = 'john';
+      const searchResults = [mockUsers[0]];
+      userService.searchUsers.and.returnValue(of(searchResults));
+
+      // Act
+      component.onSearchChange(searchQuery);
+      tick(300); // Wait for debounce
+
+      // Assert
+      expect(userService.searchUsers).toHaveBeenCalledWith(searchQuery);
+      expect(component.users).toEqual(searchResults);
+    }));
+
+    it('should debounce search input', fakeAsync(() => {
+      // Arrange
+      userService.searchUsers.and.returnValue(of([]));
+
+      // Act
+      component.onSearchChange('j');
+      component.onSearchChange('jo');
+      component.onSearchChange('joh');
+      component.onSearchChange('john');
+      tick(300);
+
+      // Assert
+      expect(userService.searchUsers).toHaveBeenCalledTimes(1);
+      expect(userService.searchUsers).toHaveBeenCalledWith('john');
+    }));
+
+    it('should clear search and load all users when search is empty', fakeAsync(() => {
+      // Arrange
+      component.users = mockUsers;
+
+      // Act
+      component.onSearchChange('');
+      tick(300);
+
+      // Assert
+      expect(userService.searchUsers).not.toHaveBeenCalled();
+    }));
+  });
+
+  describe('DOM Interactions', () => {
+    beforeEach(() => {
+      component.users = mockUsers;
+      component.filteredUsers = mockUsers.filter(u => u.isActive);
+      fixture.detectChanges();
+    });
+
+    it('should render user list when users are available', () => {
+      // Assert
+      const userListElement = compiled.querySelector('[data-testid="user-list"]');
+      expect(userListElement).toBeTruthy();
+
+      const userItems = compiled.querySelectorAll('[data-testid^="user-item-"]');
+      expect(userItems.length).toBe(2); // Only active users
+    });
+
+    it('should display user information correctly', () => {
+      // Assert
+      const firstUserItem = compiled.querySelector('[data-testid="user-item-1"]');
+      expect(firstUserItem).toBeTruthy();
+      expect(firstUserItem?.textContent).toContain('John Doe');
+      expect(firstUserItem?.textContent).toContain('john@example.com');
+      expect(firstUserItem?.textContent).toContain('Age: 30');
+    });
+
+    it('should show inactive badge for inactive users', () => {
+      // Arrange
+      component.showInactive = true;
+      component['applyFilters']();
+      fixture.detectChanges();
+
+      // Assert
+      const inactiveUser = compiled.querySelector('[data-testid="user-item-2"]');
+      const inactiveBadge = inactiveUser?.querySelector('[data-testid="inactive-badge"]');
+      expect(inactiveBadge).toBeTruthy();
+      expect(inactiveBadge?.textContent?.trim()).toBe('Inactive');
+    });
+
+    it('should handle user selection click', () => {
+      // Arrange
+      spyOn(component, 'selectUser');
+      const userItem = compiled.querySelector('[data-testid="user-item-1"]') as HTMLElement;
+
+      // Act
+      userItem.click();
+
+      // Assert
+      expect(component.selectUser).toHaveBeenCalledWith(mockUsers[0]);
+    });
+
+    it('should handle delete button click', () => {
+      // Arrange
+      spyOn(component, 'deleteUser');
+      const deleteButton = compiled.querySelector('[data-testid="delete-button-1"]') as HTMLElement;
+
+      // Act
+      deleteButton.click();
+
+      // Assert
+      expect(component.deleteUser).toHaveBeenCalled();
+    });
+
+    it('should handle refresh button click', () => {
+      // Arrange
+      spyOn(component, 'refresh');
+      const refreshButton = compiled.querySelector('[data-testid="refresh-button"]') as HTMLElement;
+
+      // Act
+      refreshButton.click();
+
+      // Assert
+      expect(component.refresh).toHaveBeenCalled();
+    });
+
+    it('should update search input binding', fakeAsync(() => {
+      // Arrange
+      const searchInput = compiled.querySelector('[data-testid="search-input"]') as HTMLInputElement;
+
+      // Act
+      searchInput.value = 'test search';
+      searchInput.dispatchEvent(new Event('input'));
+      tick();
+      fixture.detectChanges();
+
+      // Assert
+      expect(component.searchQuery).toBe('test search');
+    }));
+
+    it('should update checkbox binding', () => {
+      // Arrange
+      const checkbox = compiled.querySelector('[data-testid="show-inactive-checkbox"]') as HTMLInputElement;
+
+      // Act
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      // Assert
+      expect(component.showInactive).toBe(true);
+    });
+  });
+
+  describe('Empty States', () => {
+    it('should show empty state when no users are found', () => {
+      // Arrange
+      component.isLoading = false;
+      component.filteredUsers = [];
+      component.error = null;
+
+      // Act
+      fixture.detectChanges();
+
+      // Assert
+      const emptyState = compiled.querySelector('[data-testid="empty-state"]');
+      expect(emptyState).toBeTruthy();
+      expect(emptyState?.textContent).toContain('No users found');
+    });
+
+    it('should not show empty state when loading', () => {
+      // Arrange
+      component.isLoading = true;
+      component.filteredUsers = [];
+
+      // Act
+      fixture.detectChanges();
+
+      // Assert
+      const emptyState = compiled.querySelector('[data-testid="empty-state"]');
+      expect(emptyState).toBeFalsy();
+    });
+  });
+
+  describe('Utility Methods', () => {
+    it('should track users by ID', () => {
+      // Arrange
+      const user = mockUsers[0];
+
+      // Act
+      const result = component.trackByUserId(0, user);
+
+      // Assert
+      expect(result).toBe(user.id);
+    });
+
+    it('should check if user is selected', () => {
+      // Arrange
+      component.selectedUserId = 1;
+      const user = mockUsers[0];
+
+      // Act
+      const result = component.isUserSelected(user);
+
+      // Assert
+      expect(result).toBe(true);
+    });
+
+    it('should get active users count from service', () => {
+      // Arrange
+      component.users = mockUsers;
+
+      // Act
+      const count = component.activeUsersCount;
+
+      // Assert
+      expect(userService.getActiveUsersCount).toHaveBeenCalledWith(mockUsers);
+      expect(count).toBe(2);
+    });
+  });
+
+  describe('Component Lifecycle', () => {
+    it('should cleanup subscriptions on destroy', () => {
+      // Arrange
+      spyOn(component['destroy$'], 'next');
+      spyOn(component['destroy$'], 'complete');
+
+      // Act
+      component.ngOnDestroy();
+
+      // Assert
+      expect(component['destroy$'].next).toHaveBeenCalled();
+      expect(component['destroy$'].complete).toHaveBeenCalled();
+    });
+  });
+
+  describe('Filtering Logic', () => {
+    it('should filter out inactive users by default', () => {
+      // Arrange
+      component.users = mockUsers;
+      component.showInactive = false;
+
+      // Act
+      component['applyFilters']();
+
+      // Assert
+      expect(component.filteredUsers.length).toBe(2);
+      expect(component.filteredUsers.every(u => u.isActive)).toBe(true);
+    });
+
+    it('should include inactive users when showInactive is true', () => {
+      // Arrange
+      component.users = mockUsers;
+      component.showInactive = true;
+
+      // Act
+      component['applyFilters']();
+
+      // Assert
+      expect(component.filteredUsers.length).toBe(3);
+    });
+
+    it('should limit users based on maxUsers', () => {
+      // Arrange
+      component.users = mockUsers;
+      component.maxUsers = 1;
+      component.showInactive = true;
+
+      // Act
+      component['applyFilters']();
+
+      // Assert
+      expect(component.filteredUsers.length).toBe(1);
+    });
+  });
+});
